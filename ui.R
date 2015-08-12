@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyAce)
 
 
 shinyUI(bootstrapPage(
@@ -7,101 +8,210 @@ shinyUI(bootstrapPage(
     headerPanel("Chi-square Test"),
 
 
-    sidebarPanel(
+########## Adding loading message #########
 
-        radioButtons("type", strong("Test and data input type:"),
-                    list("Test of goodness of fit (Raw data)" = "goodraw",
-                         "Test of goodness of fit (Tabulated data)" = "goodtab",
-                         "Test of Independence (Raw data)" = "indraw",
-                         "Test of Independence (Tabulated data)" = "indtab"
-                        ),'Test of Independence (Raw data)'
-        ),
+tags$head(tags$style(type="text/css", "
+#loadmessage {
+position: fixed;
+top: 0px;
+left: 0px;
+width: 100%;
+padding: 10px 0px 10px 0px;
+text-align: center;
+font-weight: bold;
+font-size: 100%;
+color: #000000;
+background-color: #CCFF66;
+z-index: 105;
+}
+")),
 
-        br()
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+tags$div("Loading...",id="loadmessage")),
 
-    ),
-
-
-
-
-mainPanel(
+########## Added up untill here ##########
 
 
 
-    tabsetPanel(
+    mainPanel(
+        tabsetPanel(position = "left", selected = "Test of Independence (Tabulated data)",
 
-        tabPanel("Main",
+        tabPanel("Test of goodness of fit (Raw data)",
+
+            h2("Test of goodness of fit (Raw data)"),
+
+            h4("One nominal variable"),
 
             p('Note: Input values must be separated by tabs. Copy and paste from Excel/Numbers.'),
 
-            p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Please make sure that your data includes the header (variable names) in the first row.</div></b>")),
+            p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Your data needs to have the header (variable names) in the first row. Missing values should be indicated by a period (.) or NA.</div></b>")),
 
-            aceEditor("text", value="Sex\tEffect\nM\tNo\nW\tNo\nW\tNo\nM\tNo\nM\tYes\nM\tYes\nM\tYes\nM\tNo\nW\tYes\nM\tNo\nW\tYes\nM\tNo\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nM\tNo\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tNo\nW\tNo\nW\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nW\tNo\nW\tNo\nM\tYes\nW\tNo\nM\tYes\nW\tYes\nW\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nW\tYes\nW\tYes\nM\tYes\nW\tNo\nW\tYes\nM\tNo\nW\tYes\nW\tNo\nM\tYes",
-                mode="r", theme="cobalt"),
+            aceEditor("text1", value="L1\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese", mode="r", theme="cobalt"),
 
             br(),
 
-            h3("Checking the input data (Contingency table)"),
-            verbatimTextOutput("data.out"),
+            h3("Contingency table"),
+            verbatimTextOutput("data1.out"),
 
             br(),
 
             h3("Test result"),
-            verbatimTextOutput("test.out"),
+            verbatimTextOutput("test1.out"),
 
             br(),
 
             h3("Plot"),
-            downloadButton('downloadpPlot', 'Download the plot as pdf'),
 
-            plotOutput("pPlot"),
-
-            br(),
-
-            conditionalPanel(condition = "input.type == 'indraw'&&'indtab'",
-                downloadButton('downloadmPlot', 'Download the plot as pdf')
-            ),
-
-            plotOutput("mPlot", height = "550px"),
+            plotOutput("pPlot1"),
 
             br(),
             br(),
 
             strong('R session info'),
-            verbatimTextOutput("info.out")
+            verbatimTextOutput("info1.out")
             ),
 
 
 
-    tabPanel("Input Examples",
-
-p('Note: Input values must be separated by tabs. Copy and paste from Excel/Numbers.'),
-
-p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Please make sure that your data includes the header (variable names) in the first row.</div></b>")),
-
-br(),
-
-p(strong("Test of goodness of fit (Raw data)")),
-aceEditor("text1", value="L1\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nJapanese\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nThai\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese\nChinese", mode="r", theme="solarized_light"),
 
 
-br(),
-p(strong("Test of goodness of fit (Tabulated data)")),
-aceEditor("text2", value="Japanese\tThai\tChinese\n18\t24\t48", mode="r", theme="solarized_light"),
 
 
-br(),
-p(strong("Test of Independence (Raw data)")),
-aceEditor("text3", value="Sex\tEffect\nM\tNo\nW\tNo\nW\tNo\nM\tNo\nM\tYes\nM\tYes\nM\tYes\nM\tNo\nW\tYes\nM\tNo\nW\tYes\nM\tNo\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nM\tNo\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tNo\nW\tNo\nW\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nW\tNo\nW\tNo\nM\tYes\nW\tNo\nM\tYes\nW\tYes\nW\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nW\tYes\nW\tYes\nM\tYes\nW\tNo\nW\tYes\nM\tNo\nW\tYes\nW\tNo\nM\tYes",mode="r", theme="solarized_light"),
 
 
-br(),
-p(strong("Test of Independence (Tabulated data)")),
-aceEditor("text4", value="No\tYes\nM\t20\t18\nW\t8\t24", mode="r", theme="solarized_light"),
+        tabPanel("Test of goodness of fit (Tabulated data)",
 
-br()
+            h2("Test of goodness of fit (Tabulated data)"),
 
-),
+            h4("One nominal variable"),
+
+            p('Note: Input values must be separated by tabs. Copy and paste from Excel/Numbers.'),
+
+            p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Your data needs to have the header (variable names) in the first row. Missing values should be indicated by a period (.) or NA.</div></b>")),
+
+            aceEditor("text2", value="Japanese\tThai\tChinese\n18\t24\t48", mode="r", theme="cobalt"),
+
+            br(),
+
+            h3("Contingency table"),
+            verbatimTextOutput("data2.out"),
+
+            br(),
+
+            h3("Test result"),
+            verbatimTextOutput("test2.out"),
+
+            br(),
+
+            h3("Plot"),
+
+            plotOutput("pPlot2"),
+
+            br(),
+            br(),
+
+            strong('R session info'),
+            verbatimTextOutput("info2.out")
+            ),
+
+
+
+
+
+
+
+
+
+
+        tabPanel("Test of Independence (Raw data)",
+
+            h2("Test of Independence (Raw data)"),
+
+            h4("Two or more than two nominal variables"),
+
+            p('Note: Input values must be separated by tabs. Copy and paste from Excel/Numbers.'),
+
+            p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Your data needs to have the header (variable names) in the first row. Missing values should be indicated by a period (.) or NA.</div></b>")),
+
+            aceEditor("text3", value="Sex\tEffect\nM\tNo\nW\tNo\nW\tNo\nM\tNo\nM\tYes\nM\tYes\nM\tYes\nM\tNo\nW\tYes\nM\tNo\nW\tYes\nM\tNo\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nM\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nM\tNo\nW\tYes\nW\tYes\nW\tYes\nW\tYes\nM\tNo\nW\tNo\nW\tYes\nM\tYes\nW\tYes\nM\tNo\nM\tYes\nW\tYes\nM\tYes\nW\tYes\nM\tYes\nM\tNo\nM\tNo\nW\tNo\nW\tNo\nM\tYes\nW\tNo\nM\tYes\nW\tYes\nW\tYes\nM\tNo\nM\tNo\nM\tYes\nW\tYes\nM\tNo\nW\tYes\nW\tYes\nM\tYes\nW\tNo\nW\tYes\nM\tNo\nW\tYes\nW\tNo\nM\tYes",mode="r", theme="cobalt"),
+
+            br(),
+
+            h3("Contingency table"),
+            verbatimTextOutput("data3.out"),
+
+            br(),
+
+            h3("Test result"),
+            verbatimTextOutput("test3.out"),
+
+            br(),
+
+            h3("Plot"),
+
+            plotOutput("pPlot3"),
+
+            br(),
+
+            plotOutput("mPlot3", height = "550px"),
+
+            br(),
+            br(),
+
+            strong('R session info'),
+            verbatimTextOutput("info3.out")
+            ),
+
+
+
+
+
+
+
+
+
+        tabPanel("Test of Independence (Tabulated data)",
+
+            h2("Test of Independence (Tabulated data)"),
+
+            h4("Two or more than two nominal variables"),
+
+            p('Note: Input values must be separated by tabs. Copy and paste from Excel/Numbers.'),
+
+            p(HTML("<b><div style='background-color:#FADDF2;border:1px solid black;'>Your data needs to have the header (variable names) in the first row. Missing values should be indicated by a period (.) or NA.</div></b>")),
+
+            aceEditor("text4", value="\tNo\tYes\nM\t20\t18\nW\t8\t24", mode="r", theme="cobalt"),
+
+            br(),
+
+            h3("Contingency table"),
+            verbatimTextOutput("data4.out"),
+
+            br(),
+
+            h3("Test result"),
+            verbatimTextOutput("test4.out"),
+
+            br(),
+
+            h3("Plot"),
+
+            plotOutput("pPlot4"),
+
+            br(),
+
+            plotOutput("mPlot4", height = "550px"),
+
+            br(),
+            br(),
+
+            strong('R session info'),
+            verbatimTextOutput("info4.out")
+            ),
+
+
+
+
 
 
 

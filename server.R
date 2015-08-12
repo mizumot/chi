@@ -6,145 +6,268 @@ library(vcd)
 
 
 shinyServer(function(input, output) {
-    
-    options(warn=-1)
-    
-    
-    
-    
-    data <- reactive({
-        
-        
-        data <- read.csv(text=input$text, sep="\t")
-        
-        
-        if (input$type == "goodraw") {
 
-            x <- table(data)
+
+
+#----------------------------------------------------
+# 1. Test of goodness of fit (Raw data)
+#----------------------------------------------------
+
+    data1 <- reactive({
+        
+        dat <- read.csv(text=input$text1, sep="", na.strings=c("","NA","."))
+        
+            x <- table(dat)
             n <- sum(x)
             x <- c(x, Sum=n)
             
-        }
+            print(x)
+        })
+    
+        output$data1.out <- renderPrint({
+            data1()
+        })
+    
+    
+    
+    
+    
+    test1 <- reactive({
         
-        else if (input$type == "goodtab") {
-            
-            x <- data
-            n <- sum(x)
-            x <- data.frame(x, Sum=n)
-            rownames(x) <- ""
-            
-        }
+        dat <- read.csv(text=input$text1, sep="", na.strings=c("","NA","."))
         
-        else if (input$type == "indraw") {
-            
-            x <- table(data)
-            x <- addmargins(x)
-            
-        }
         
-        else if (input$type == "indtab") {
+            x <- table(dat)
+            chi <- chisq.test(x)
+            print(chi)
+        
+            P0 <- rep(1/length(x), times = length(x))  # Expected ratio
+            P1 <- x/sum(x)                             # Observed ratio
+            w <- ES.w1(P0, P1)                         # Effect size ｗ (Large=0.5, Medium=0.3, Small=0.1)
             
-            x <- as.matrix(data)
-            x <- addmargins(x)
-            
-        }
+            cat("Effect size w =", round(w, 3), "\n")
 
-        print(x)
 
+            cat("\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
+            
+            itemNum <- 0
+            for (i in 1:length(chi$observed)) {
+                for (j in 1:length(chi$observed)) {
+                    if (i <= j) {next}
+                    z <- (abs(chi$observed[[i]]-chi$observed[[j]])-1)/sqrt(chi$observed[[i]]+chi$observed[[j]])
+                    p <- pnorm(z, lower.tail=FALSE)*2
+                    p <- p.adjust(p, method = "bonferroni", n = length(x))
+                    n <- chi$observed[[i]] + chi$observed[[j]]
+                    p00 <- c(0.5, 0.5) # 母比率同等
+                    p11 <- c(chi$observed[[i]]/n, chi$observed[[j]]/n) # 標本比率
+                    p0  <- p00[1]
+                    p1  <- p11[1]
+                    ESg <- p1-p0 # 効果量g
+                    cat(names(x)[j],"vs",names(x)[i],":", "z =", sprintf("%.3f",round(z,3)), ",", "p =", sprintf("%.3f",round(p,3)), ",", "Effect size g =", round(ESg,3), "\n")
+                    itemNum <- itemNum + 1
+                }
+            }
+    })
+    
+    output$test1.out <- renderPrint({
+        test1()
     })
     
     
     
     
     
-    test <- reactive({
+    makepPlot1 <- function(){
         
-        dat <- read.csv(text=input$text, sep="\t")
+        dat <- read.csv(text=input$text1, sep="", na.strings=c("","NA","."))
         
-        
-        if (input$type == "goodraw") {
-            
             x <- table(dat)
             
-            chi <- chisq.test(x)
+            P0 <- rep(1/length(x), times = length(x))  # Expected ratio
+            P1 <- x/sum(x)                             # Observed ratio
             
-            print(chi)
+            par(mar=c(5,6,2,4))
+            z <- matrix(c(P0, P1), nc=length(x), by=1)
+            colnames(z) <- names(x)
+            rownames(z) <- c("Expected", "Observed")
+            barplot(t(z), hor=1, las=1, xlab="Percentage", col=gray.colors(length(x)))
             
+            legend("bottomright",legend=colnames(z), fill=gray.colors(length(x)))
             
-            P0 <- rep(1/length(x), times = length(x))  # 期待比率
-            P1 <- x/sum(x)               # 標本比率
-            w <- ES.w1(P0, P1)      # 効果量ｗを求める関数 大=0.5, 中=0.3, 小=0.1
-            
-            cat("Effect size w =", round(w, 3), "\n")
+    }
+    
+    output$pPlot1 <- renderPlot({
+        print(makepPlot1())
+    })
+    
+    
+    
+    
+    
+    info1 <- reactive({
+        info1 <- paste("This analysis was conducted with ", strsplit(R.version$version.string, " \\(")[[1]][1], ".", sep = "")
+        info2 <- paste("It was executed on ", date(), ".", sep = "")
+        cat(sprintf(info1), "\n")
+        cat(sprintf(info2), "\n")
+    })
+    
+    output$info1.out <- renderPrint({
+        info1()
+    })
 
 
-            cat("\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
-            
-            itemNum <- 0
-            for (i in 1:length(chi$observed)) {
-                for (j in 1:length(chi$observed)) {
-                    if (i <= j) {next}
-                    z <- (abs(chi$observed[[i]]-chi$observed[[j]])-1)/sqrt(chi$observed[[i]]+chi$observed[[j]])
-                    p <- pnorm(z, lower.tail=FALSE)*2
-                    p <- p.adjust(p, method = "bonferroni", n = length(x))
-                    n <- chi$observed[[i]] + chi$observed[[j]]
-                    p00 <- c(0.5, 0.5) # 母比率同等
-                    p11 <- c(chi$observed[[i]]/n, chi$observed[[j]]/n) # 標本比率
-                    p0  <- p00[1]
-                    p1  <- p11[1]
-                    ESg <- p1-p0 # 効果量g
-                    cat(names(x)[j],"vs",names(x)[i],":", "z =", sprintf("%.3f",round(z,3)), ",", "p =", sprintf("%.3f",round(p,3)), ",", "Effect size g =", round(ESg,3), "\n")
-                    itemNum <- itemNum + 1
-                }
-            }
-        }
+
+
+
+
+
+
+
+
+#----------------------------------------------------
+# 2. Test of goodness of fit (Tabulated data)
+#----------------------------------------------------
+
+    data2 <- reactive({
         
+        dat <- read.csv(text=input$text2, sep="", na.strings=c("","NA","."))
         
-        else if (input$type == "goodtab") {
+            n <- sum(dat)
+            x <- data.frame(dat, Sum = n)
+            rownames(x) <- ""
             
+            print(x)
+        })
+    
+        output$data2.out <- renderPrint({
+            data2()
+        })
+    
+    
+    
+    
+    
+    test2 <- reactive({
+        
+        dat <- read.csv(text=input$text2, sep="", na.strings=c("","NA","."))
+        
             x <- dat
-            
             chi <- chisq.test(x)
-            
             print(chi)
             
-            
-            P0 <- rep(1/length(x), times = length(x))  # 期待比率
-            P1 <- x/sum(x)               # 標本比率
-            w <- ES.w1(P0, P1)      # 効果量ｗを求める関数 大=0.5, 中=0.3, 小=0.1
-            
-            cat("Effect size w =", round(w, 3), "\n")
-
-
-            cat("\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
-            
-            itemNum <- 0
-            for (i in 1:length(chi$observed)) {
-                for (j in 1:length(chi$observed)) {
-                    if (i <= j) {next}
-                    z <- (abs(chi$observed[[i]]-chi$observed[[j]])-1)/sqrt(chi$observed[[i]]+chi$observed[[j]])
-                    p <- pnorm(z, lower.tail=FALSE)*2
-                    p <- p.adjust(p, method = "bonferroni", n = length(x))
-                    n <- chi$observed[[i]] + chi$observed[[j]]
-                    p00 <- c(0.5, 0.5) # 母比率同等
-                    p11 <- c(chi$observed[[i]]/n, chi$observed[[j]]/n) # 標本比率
-                    p0  <- p00[1]
-                    p1  <- p11[1]
-                    ESg <- p1-p0 # 効果量g
-                    cat(names(x)[j],"vs",names(x)[i],":", "z =", sprintf("%.3f",round(z,3)), ",", "p =", sprintf("%.3f",round(p,3)), ",", "Effect size g =", round(ESg,3), "\n")
-                    itemNum <- itemNum + 1
-                }
+            P0 <- rep(1/length(x), times = length(x))  # Expected ratio
+            P1 <- x/sum(x)                             # Observed ratio
+            w <- ES.w1(P0, P1)                         # Effect size ｗ (Large=0.5, Medium=0.3, Small=0.1)
+        
+        cat("Effect size w =", round(w, 3), "\n")
+        
+        
+        cat("\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
+        
+        itemNum <- 0
+        for (i in 1:length(chi$observed)) {
+            for (j in 1:length(chi$observed)) {
+                if (i <= j) {next}
+                z <- (abs(chi$observed[[i]]-chi$observed[[j]])-1)/sqrt(chi$observed[[i]]+chi$observed[[j]])
+                p <- pnorm(z, lower.tail=FALSE)*2
+                p <- p.adjust(p, method = "bonferroni", n = length(x))
+                n <- chi$observed[[i]] + chi$observed[[j]]
+                p00 <- c(0.5, 0.5) # 母比率同等
+                p11 <- c(chi$observed[[i]]/n, chi$observed[[j]]/n) # 標本比率
+                p0  <- p00[1]
+                p1  <- p11[1]
+                ESg <- p1-p0 # 効果量g
+                cat(names(x)[j],"vs",names(x)[i],":", "z =", sprintf("%.3f",round(z,3)), ",", "p =", sprintf("%.3f",round(p,3)), ",", "Effect size g =", round(ESg,3), "\n")
+                itemNum <- itemNum + 1
             }
         }
+    })
+    
+    output$test2.out <- renderPrint({
+        test2()
+    })
+    
+    
+    
+    
+    
+    makepPlot2 <- function(){
         
+        dat <- read.csv(text=input$text2, sep="", na.strings=c("","NA","."))
         
-        else if (input$type == "indraw") {
-            
+            x <- dat
+        
+            P0 <- rep(1/length(x), times = length(x))  # 期待比率
+            P1 <- x/sum(x)               # 標本比率
+        
+            par(mar=c(5,6,2,4))
+            z <- matrix(c(P0, P1), nc=length(x), by=1)
+            colnames(z) <- names(x)
+            rownames(z) <- c("Expected", "Observed")
+            barplot(t(z), hor=1, las=1, xlab="Percentage", col=gray.colors(length(x)))
+        
+            legend("bottomright",legend=colnames(z), fill=gray.colors(length(x)))
+    }
+    
+    output$pPlot2 <- renderPlot({
+        print(makepPlot2())
+    })
+    
+    
+    
+    
+    
+    info2 <- reactive({
+        info1 <- paste("This analysis was conducted with ", strsplit(R.version$version.string, " \\(")[[1]][1], ".", sep = "")
+        info2 <- paste("It was executed on ", date(), ".", sep = "")
+        cat(sprintf(info1), "\n")
+        cat(sprintf(info2), "\n")
+    })
+    
+    output$info2.out <- renderPrint({
+        info2()
+    })
+
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------
+# 3. Test of Independence (Raw data)
+#----------------------------------------------------
+
+    data3 <- reactive({
+        
+        dat <- read.csv(text=input$text3, sep="", na.strings=c("","NA","."))
+        
+            x <- table(dat)
+            x <- addmargins(x)
+        
+            print(x)
+        })
+    
+        output$data3.out <- renderPrint({
+            data3()
+        })
+    
+    
+    
+    
+    
+    test3 <- reactive({
+        
+        dat <- read.csv(text=input$text3, sep="", na.strings=c("","NA","."))
+        
             x <- table(dat)
             
             print(chisq.test(x, correct=F)) #イエーツの補正なし
-            print(chisq.test(x)) #イエーツの補正あり
-            print(fisher.test(x, workspace=3000000)) #フィッシャーの正確確率検定
+            print(chisq.test(x))            #イエーツの補正あり
+            print(fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)) #フィッシャーの正確確率検定
             
             cat("\n", "---", "\n", "Effect size indices:", "\n", "\n")
             print(assocstats(x))
@@ -223,16 +346,138 @@ shinyServer(function(input, output) {
             rownames(a) <- cat("\n")
             
             print(a)
-        }
+    
+    })
+    
+    output$test3.out <- renderPrint({
+        test3()
+    })
+    
+    
+    
+    
+    
+    makepPlot3 <- function(){
         
+        dat <- read.csv(text=input$text3, sep="", na.strings=c("","NA","."))
         
-        else if (input$type == "indtab") {
+            x <- table(dat)
             
+            levI <- nrow(x) # 行の水準数
+            levJ <- ncol(x) # 列の水準数
+            dosu <- as.vector(t(x))
+            
+            # 標本比率の計算
+            gokei <- c()
+            bunbo <- c()
+            for(i in 1:levI) # 各群の度数を集計
+            {
+                ds <- c()
+                for(j in 1:levJ)
+                {
+                    ds <- c(ds, dosu[(i-1)*levJ+j])
+                }
+                gokei <- c(gokei, sum(ds))
+                bunbo <- c(bunbo, rep(sum(ds), levJ))
+            }
+            hyohir <- dosu/bunbo # 群別の各値の比率
+            
+            zuhir <- c()
+            for(i in levI:1) # 群ｉ→群１と逆順に並べ替える
+            {
+                for(j in 1:levJ)
+                {
+                    zuhir <- c(zuhir, hyohir[(i-1)*levJ+j] )
+                }
+            }
+            
+            zubar <- matrix(c(zuhir), nc=levJ, by=1)
+            rownames(zubar) <- rev(rownames(x))
+            colnames(zubar) <- colnames(x)
+            #zubar <- zubar[nrow(zubar):1,]
+            
+            # プロット
+            par(mar=c(5,6,2,4))
+            barplot(t(zubar), hor=1, las=1, xlab="Percentage", col=gray.colors(ncol(x)))
+            legend("bottomright", legend=colnames(zubar), fill=gray.colors(ncol(x)))
+    }
+    
+    output$pPlot3 <- renderPlot({
+        print(makepPlot3())
+    })
+    
+    
+    
+    
+    
+   makemPlot3 <- function(){
+       
+       dat <- read.csv(text=input$text3, sep="", na.strings=c("","NA","."))
+       
+           x <- table(dat)
+           mosaic(x, gp = shading_max, main="Mosaic plot")
+       
+    }
+    
+    output$mPlot3 <- renderPlot({
+        print(makemPlot3())
+    })
+    
+    
+
+
+
+    info3 <- reactive({
+        info1 <- paste("This analysis was conducted with ", strsplit(R.version$version.string, " \\(")[[1]][1], ".", sep = "")
+        info2 <- paste("It was executed on ", date(), ".", sep = "")
+        cat(sprintf(info1), "\n")
+        cat(sprintf(info2), "\n")
+    })
+    
+    output$info3.out <- renderPrint({
+        info3()
+    })
+
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------
+# 4. Test of Independence (Tabulated data)
+#----------------------------------------------------
+
+    data4 <- reactive({
+        
+        dat <- read.csv(text=input$text4, sep="", na.strings=c("","NA","."))
+        
+            x <- as.matrix(dat)
+            x <- addmargins(x)
+        
+            print(x)
+        })
+    
+        output$data4.out <- renderPrint({
+            data4()
+        })
+    
+    
+    
+    
+    
+    test4 <- reactive({
+        
+        dat <- read.csv(text=input$text4, sep="", na.strings=c("","NA","."))
+        
             x <- as.matrix(dat)
             
             print(chisq.test(x, correct=F)) #イエーツの補正なし
             print(chisq.test(x)) #イエーツの補正あり
-            print(fisher.test(x, workspace=3000000)) #フィッシャーの正確確率検定
+            print(fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)) #フィッシャーの正確確率検定
             
             cat("\n", "---", "\n", "Effect size indices:", "\n", "\n")
             print(assocstats(x))
@@ -309,55 +554,22 @@ shinyServer(function(input, output) {
             CramerV=round(v, 4))
             rownames(a) <- cat("\n")
             print(a)
-            
-        }
+    
+    })
+    
+    output$test4.out <- renderPrint({
+        test4()
     })
     
     
     
     
-    makepPlot <- function(){
-        dat <- read.csv(text=input$text, sep="\t")
+    
+    makepPlot4 <- function(){
         
+        dat <- read.csv(text=input$text4, sep="", na.strings=c("","NA","."))
         
-        if (input$type == "goodraw") {
-            
-            x <- table(dat)
-            
-            P0 <- rep(1/length(x), times = length(x))  # 期待比率
-            P1 <- x/sum(x)               # 標本比率
-            
-            par(mar=c(5,6,2,4))
-            z <- matrix(c(P0, P1), nc=length(x), by=1)
-            colnames(z) <- names(x)
-            rownames(z) <- c("Expected", "Observed")
-            barplot(t(z), hor=1, las=1, xlab="Percentage", col=gray.colors(length(x)))
-            
-            legend("bottomright",legend=colnames(z), fill=gray.colors(length(x)))
-            
-        }
-        
-        
-        else if (input$type == "goodtab") {
-            
-            x <- dat
-            
-            P0 <- rep(1/length(x), times = length(x))  # 期待比率
-            P1 <- x/sum(x)               # 標本比率
-            
-            par(mar=c(5,6,2,4))
-            z <- matrix(c(P0, P1), nc=length(x), by=1)
-            colnames(z) <- names(x)
-            rownames(z) <- c("Expected", "Observed")
-            barplot(t(z), hor=1, las=1, xlab="Percentage", col=gray.colors(length(x)))
-            
-            legend("bottomright",legend=colnames(z), fill=gray.colors(length(x)))
-        }
-        
-        
-        else if (input$type == "indraw") {
-            
-            x <- table(dat)
+           x <- as.matrix(dat)
             
             levI <- nrow(x) # 行の水準数
             levJ <- ncol(x) # 列の水準数
@@ -396,122 +608,48 @@ shinyServer(function(input, output) {
             par(mar=c(5,6,2,4))
             barplot(t(zubar), hor=1, las=1, xlab="Percentage", col=gray.colors(ncol(x)))
             legend("bottomright", legend=colnames(zubar), fill=gray.colors(ncol(x)))
-        }
-        
-        
-        else if (input$type == "indtab") {
-            x <- as.matrix(dat)
-            
-            levI <- nrow(x) # 行の水準数
-            levJ <- ncol(x) # 列の水準数
-            dosu <- as.vector(t(x))
-            
-            # 標本比率の計算
-            gokei <- c()
-            bunbo <- c()
-            for(i in 1:levI) # 各群の度数を集計
-            {
-                ds <- c()
-                for(j in 1:levJ)
-                {
-                    ds <- c(ds, dosu[(i-1)*levJ+j])
-                }
-                gokei <- c(gokei, sum(ds))
-                bunbo <- c(bunbo, rep(sum(ds), levJ))
-            }
-            hyohir <- dosu/bunbo # 群別の各値の比率
-            
-            zuhir <- c()
-            for(i in levI:1) # 群ｉ→群１と逆順に並べ替える
-            {
-                for(j in 1:levJ)
-                {
-                    zuhir <- c(zuhir, hyohir[(i-1)*levJ+j] )
-                }
-            }
-            
-            zubar <- matrix(c(zuhir), nc=levJ, by=1)
-            rownames(zubar) <- rev(rownames(x))
-            colnames(zubar) <- colnames(x)
-            #zubar <- zubar[nrow(zubar):1,]
-            
-            # プロット
-            par(mar=c(5,6,2,4))
-            barplot(t(zubar), hor=1, las=1, xlab="Percentage", col=gray.colors(ncol(x)))
-            legend("bottomright", legend=colnames(zubar), fill=gray.colors(ncol(x)))
-        }
+    
     }
     
-    output$pPlot <- renderPlot({
-        print(makepPlot())
+    output$pPlot4 <- renderPlot({
+        print(makepPlot4())
     })
     
     
     
-    makemPlot <- function(){
-        dat <- read.csv(text=input$text, sep="\t")
-        
-        if (input$type == "indraw") {
-            
-            x <- table(dat)
-            mosaic(x, gp = shading_max, main="Mosaic plot")
-        }
-        
-        
-        else if (input$type == "indtab") {
+    
+    
+    makemPlot4 <- function(){
+       
+       dat <- read.csv(text=input$text4, sep="", na.strings=c("","NA","."))
+       
             x <- as.matrix(dat)
             mosaic(x, gp = shading_max, main="Mosaic plot")
-            
-        }
+       
     }
     
-    output$mPlot <- renderPlot({
-        print(makemPlot())
+    output$mPlot4 <- renderPlot({
+        print(makemPlot4())
     })
     
     
-    
-    info <- reactive({
-        info1 <- paste("This analysis was conducted with ", strsplit(R.version$version.string, " \\(")[[1]][1], ".", sep = "")# バージョン情報
-        info2 <- paste("It was executed on ", date(), ".", sep = "")# 実行日時
+
+
+
+    info4 <- reactive({
+        info1 <- paste("This analysis was conducted with ", strsplit(R.version$version.string, " \\(")[[1]][1], ".", sep = "")
+        info2 <- paste("It was executed on ", date(), ".", sep = "")
         cat(sprintf(info1), "\n")
         cat(sprintf(info2), "\n")
     })
     
-    output$info.out <- renderPrint({
-        info()
+    output$info4.out <- renderPrint({
+        info4()
     })
 
 
 
 
 
-    output$data.out <- renderPrint({
-        data()
-    })
-    
-    output$test.out <- renderPrint({
-        test()
-    })
-    
-    output$downloadpPlot <- downloadHandler( # 名前変更
-    filename = function() {
-        paste('Percentage-', Sys.Date(), '.pdf', sep='') # 名前変更
-    },
-    content = function(FILE=NULL) {
-        pdf(file=FILE)
-		print(makepPlot()) # 名前変更
-		dev.off()
-	})
-    
-    output$downloadmPlot <- downloadHandler( # 名前変更
-    filename = function() {
-        paste('Mosaicplot-', Sys.Date(), '.pdf', sep='') # 名前変更
-    },
-    content = function(FILE=NULL) {
-        pdf(file=FILE)
-		print(makemPlot()) # 名前変更
-		dev.off()
-	})
 
 })
