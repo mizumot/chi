@@ -270,7 +270,7 @@ tags$div("Loading...",id="loadmessage")),
             'written by Dr. Jenifer Larson-Hall.'),
 
             p('Also, if you are a cool Mac user and want to use R with GUI,',
-            a("MacR", href="http://www.urano-ken.com/blog/2013/02/25/installing-and-using-macr/", target="_blank"),
+            a("MacR", href="https://sites.google.com/site/casualmacr/", target="_blank"),
             'is defenitely the way to go!'),
 
             br(),
