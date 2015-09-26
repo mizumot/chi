@@ -1,6 +1,7 @@
 library(shiny)
 library(shinyAce)
 library(pwr)
+library(userfriendlyscience)
 library(vcd)
 
 
@@ -265,14 +266,68 @@ shinyServer(function(input, output) {
         
             x <- table(dat)
             
-            print(chisq.test(x, correct=F)) #イエーツの補正なし
-            print(chisq.test(x))            #イエーツの補正あり
-            print(fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)) #フィッシャーの正確確率検定
+            a <- chisq.test(x, correct=F)           # Pearson's Chi-squared
+            b <- chisq.test(x)                      # Yates
+            c <- assocstats(x)                      # Likelihood Ratio
+            d <- fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)  # Fisher's Exact Test
             
-            cat("\n", "---", "\n", "Effect size indices:", "\n", "\n")
-            print(assocstats(x))
+            aa <- data.frame(a[4], a[1], a[2], a[3])
+            aa[1] <- c("Pearson's Chi-squared")
+            row.names(aa) <- NULL
             
-            cat("\n", "\n", "---", "\n", "Residual analysis:", "\n")
+            bb <- data.frame(b[4], b[1], b[2], b[3])
+            bb[1] <- c("Yates' Continuity Correction")
+            row.names(bb) <- NULL
+            
+            cc <- data.frame(c[2])[1,]
+            cc <- data.frame(c("Likelihood Ratio"), cc[,1], cc[,2], cc[,3])
+            names(cc) <- c("method", "statistic", "parameter", "p.value")
+            
+            if (nrow(x) * ncol(x) == 4) { # Only for the 2×2 table
+                dd <- data.frame(d[6], c(""), c(""), d[1])
+            } else {
+                dd <- data.frame(d[3], c(""), c(""), d[1])
+            }
+            dd[1] <- c("Fisher's Exact Test")
+            names(dd) <- c("method", "statistic", "parameter", "p.value")
+            row.names(dd) <- NULL
+            
+            res <- rbind(aa, bb, cc, dd) 
+            names(res) <- c("Test", "X-squared", "df", "p-value")
+            print(res)
+            
+            
+            cat("\n")
+            cat("\n", "------------------------------------------------------", "\n",
+            "Effect size:", "\n")
+            
+            # Cramer's V [95%CI]
+            V <- assocstats(x)$cramer
+            ci.values <- confIntV(x)
+            
+            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.values$output$confIntV.fisher[1], ",",ci.values$output$confIntV.fisher[2],"]", "\n")
+            
+            cat("\n")
+            
+            if (nrow(x) * ncol(x) == 4) { # Print odds ratio only for the 2×2 table
+                
+                OR <- vcd::oddsratio(x, log = F)
+                CI <- confint(vcd::oddsratio(x, log = F))
+                p <- summary(vcd::oddsratio(x))
+                row.names(p) <- ""
+                
+                cat("\n", "Odds Ratio [95%CI] =", OR, "[", CI[1], ",",CI[2],"]", "\n")
+                
+                cat("\n")
+                print(p)
+                
+            } else {
+                NULL
+            }
+            
+            
+            
+            cat("\n", "\n", "------------------------------------------------------", "\n", "Residual analysis:", "\n")
             res <- chisq.test(x)  # 検定結果を代入
             
             cat("\n", "[Expected values]", "\n")
@@ -288,7 +343,7 @@ shinyServer(function(input, output) {
             print(round(2*(1-pnorm(abs(res$residuals/sqrt(outer(1-rowSums(x)/sum(x), 1-colSums(x)/sum(x)))))),3)) # 残差の調整後有意確率（両側確率）
             
             # 多重比較
-            cat("\n", "\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
+            cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
             
             levI <- nrow(x) # 行の水準数
             levJ <- ncol(x) # 列の水準数
@@ -475,14 +530,70 @@ shinyServer(function(input, output) {
         
             x <- as.matrix(dat)
             
-            print(chisq.test(x, correct=F)) #イエーツの補正なし
-            print(chisq.test(x)) #イエーツの補正あり
-            print(fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)) #フィッシャーの正確確率検定
             
-            cat("\n", "---", "\n", "Effect size indices:", "\n", "\n")
-            print(assocstats(x))
+            a <- chisq.test(x, correct=F)           # Pearson's Chi-squared
+            b <- chisq.test(x)                      # Yates
+            c <- assocstats(x)                      # Likelihood Ratio
+            d <- fisher.test(x, workspace=100000000, simulate.p.value = TRUE, B = 1e7)  # Fisher's Exact Test
             
-            cat("\n", "\n", "---", "\n", "Residual analysis:", "\n")
+            aa <- data.frame(a[4], a[1], a[2], a[3])
+            aa[1] <- c("Pearson's Chi-squared")
+            row.names(aa) <- NULL
+            
+            bb <- data.frame(b[4], b[1], b[2], b[3])
+            bb[1] <- c("Yates' Continuity Correction")
+            row.names(bb) <- NULL
+            
+            cc <- data.frame(c[2])[1,]
+            cc <- data.frame(c("Likelihood Ratio"), cc[,1], cc[,2], cc[,3])
+            names(cc) <- c("method", "statistic", "parameter", "p.value")
+            
+            if (nrow(x) * ncol(x) == 4) { # Only for the 2×2 table
+                dd <- data.frame(d[6], c(""), c(""), d[1])
+            } else {
+                dd <- data.frame(d[3], c(""), c(""), d[1])
+            }
+            dd[1] <- c("Fisher's Exact Test")
+            names(dd) <- c("method", "statistic", "parameter", "p.value")
+            row.names(dd) <- NULL
+            
+            res <- rbind(aa, bb, cc, dd)
+            names(res) <- c("Test", "X-squared", "df", "p-value")
+            cat("\n")
+            print(res)
+            
+            
+            cat("\n")
+            cat("\n", "------------------------------------------------------", "\n",
+            "Effect size:", "\n")
+
+            # Cramer's V [95%CI]
+            V <- assocstats(x)$cramer
+            ci.values <- confIntV(x)
+
+            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.values$output$confIntV.fisher[1], ",",ci.values$output$confIntV.fisher[2],"]", "\n")
+
+            cat("\n")
+            
+            if (nrow(x) * ncol(x) == 4) { # Print odds ratio only for the 2×2 table
+               
+               OR <- vcd::oddsratio(x, log = F)
+               CI <- confint(vcd::oddsratio(x, log = F))
+               p <- summary(vcd::oddsratio(x))
+               row.names(p) <- ""
+
+                cat("\n", "Odds Ratio [95%CI] =", OR, "[", CI[1], ",",CI[2],"]", "\n")
+               
+               cat("\n")
+               print(p)
+            
+            } else {
+                NULL
+            }
+            
+            
+            
+            cat("\n", "\n", "------------------------------------------------------", "\n", "Residual analysis:", "\n")
             res <- chisq.test(x)  # 検定結果を代入
             
             cat("\n", "[Expected values]", "\n")
@@ -498,7 +609,7 @@ shinyServer(function(input, output) {
             print(round(2*(1-pnorm(abs(res$residuals/sqrt(outer(1-rowSums(x)/sum(x), 1-colSums(x)/sum(x)))))),3)) # 残差の調整後有意確率（両側確率）
             
             # 多重比較
-            cat("\n", "\n", "---", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
+            cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
             
             levI <- nrow(x) # 行の水準数
             levJ <- ncol(x) # 列の水準数
