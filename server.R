@@ -1,8 +1,8 @@
 library(shiny)
 library(shinyAce)
 library(pwr)
-library(userfriendlyscience)
 library(vcd)
+library(userfriendlyscience)
 
 
 
@@ -292,7 +292,9 @@ shinyServer(function(input, output) {
             names(dd) <- c("method", "statistic", "parameter", "p.value")
             row.names(dd) <- NULL
             
-            res <- rbind(aa, bb, cc, dd) 
+            res <- rbind(aa, bb, cc, dd)
+            res[2] <- round(as.numeric(res[,2]), 4)
+            res[2][4,] <- ""
             names(res) <- c("Test", "X-squared", "df", "p-value")
             print(res)
             
@@ -304,22 +306,20 @@ shinyServer(function(input, output) {
             # Cramer's V [95%CI]
             V <- assocstats(x)$cramer
             ci.values <- confIntV(x)
+            lower <- ci.values$output$confIntV.fisher[1]
+            upper <- ci.values$output$confIntV.fisher[2]
             
-            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.values$output$confIntV.fisher[1], ",",ci.values$output$confIntV.fisher[2],"]", "\n")
-            
-            cat("\n")
-            
+            cat("\n", "Cramer's V [95%CI] =", V, "[", lower, ",",upper,"]", "\n")
+
+
+            # Odds Ratio
             if (nrow(x) * ncol(x) == 4) { # Print odds ratio only for the 2×2 table
                 
-                OR <- vcd::oddsratio(x, log = F)
-                CI <- confint(vcd::oddsratio(x, log = F))
-                p <- summary(vcd::oddsratio(x))
-                row.names(p) <- ""
-                
-                cat("\n", "Odds Ratio [95%CI] =", OR, "[", CI[1], ",",CI[2],"]", "\n")
-                
-                cat("\n")
-                print(p)
+                oddsrt <- (x[1,1]/x[1,2]) / (x[2,1]/x[2,2])
+                oddsrt.log <- log((x[1,1]/x[1,2]) / (x[2,1]/x[2,2]))
+                oddsrt.log.var <- 1/x[1,1] + 1/x[1,2] + 1/x[2,1] + 1/x[2,2]
+                ci.lwrupr <- exp(oddsrt.log + qnorm(c(0.025,0.975)) * sqrt(oddsrt.log.var))
+                cat("\n", "Odds Ratio [95%CI] =", oddsrt, "[", ci.lwrupr[1], ",",ci.lwrupr[2],"]", "\n")
                 
             } else {
                 NULL
@@ -342,11 +342,19 @@ shinyServer(function(input, output) {
             cat("\n", "[p-values of adjusted standardized residuals (two-tailed)]", "\n")
             print(round(2*(1-pnorm(abs(res$residuals/sqrt(outer(1-rowSums(x)/sum(x), 1-colSums(x)/sum(x)))))),3)) # 残差の調整後有意確率（両側確率）
             
+            
+            
             # 多重比較
+            if (nrow(x) < 3) { # Not showing if the number of row is 2
+                
+                cat("\n")
+
+            } else {
+
             cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
             
-            levI <- nrow(x) # 行の水準数
-            levJ <- ncol(x) # 列の水準数
+            levI <- nrow(x)
+            levJ <- ncol(x)
             N <- sum(x)
             dosu <- as.vector(t(x))
             M <- min(c(levI, levJ))
@@ -357,6 +365,8 @@ shinyServer(function(input, output) {
             pchi <- c()
             fishp <- c()
             v <- c()
+            v.lower <- c()
+            v.upper <- c()
             for(i in 1:(levI-1))
             {
                 for(k in (i+1):levI)
@@ -370,14 +380,19 @@ shinyServer(function(input, output) {
                     {
                         ds <- c(ds, dosu[(k-1)*levJ+j])
                     }
-                   
+                    
                     kaik <- c()
-                    kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F) # イェーツの補正なし
+                    kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
                     stat <- c(stat,kaik$stat)
                     jiyu <- c(jiyu,kaik$para)
                     pchi <- c(pchi,kaik$p.va)
                     fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
                     v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                    ci.values <- confIntV(matrix(ds, nr=2, by=1))
+                    lower <- ci.values$output$confIntV.fisher[1]
+                    upper <- ci.values$output$confIntV.fisher[2]
+                    v.lower <- c(v.lower, lower)
+                    v.upper <- c(v.upper, upper)
                 } }
             padj <- c()
             padj <- p.adjust(pchi, "bonferroni")
@@ -388,20 +403,22 @@ shinyServer(function(input, output) {
             {
                 for(j in (i+1):levI)
                 {
-                    kochi <- c(kochi, paste("Row", i, sep=""))
-                    aite  <- c(aite,  paste("Row", j, sep=""))
+                    kochi <- c(kochi, rownames(x)[i])
+                    aite  <- c(aite,  rownames(x)[j])
                 }
             }
             
-            a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4), 
-                            df=round(jiyu, 4),
-                            p=round(padj, 4),
-                            Fisher.p=round(fishpadj, 4),
-                            CramerV=round(v, 4))
+            a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4),
+            df=round(jiyu, 4),
+            p=round(padj, 4),
+            Fisher.p=round(fishpadj, 4),
+            Cramers.V=round(v, 4),
+            lwr.V=round(v.lower, 4),
+            upr.V=round(v.upper, 4))
             rownames(a) <- cat("\n")
             
             print(a)
-    
+        }
     })
     
     output$test3.out <- renderPrint({
@@ -558,9 +575,13 @@ shinyServer(function(input, output) {
             row.names(dd) <- NULL
             
             res <- rbind(aa, bb, cc, dd)
+            res[2] <- round(as.numeric(res[,2]), 4)
+            res[2][4,] <- ""
             names(res) <- c("Test", "X-squared", "df", "p-value")
             cat("\n")
             print(res)
+            
+            
             
             
             cat("\n")
@@ -570,23 +591,21 @@ shinyServer(function(input, output) {
             # Cramer's V [95%CI]
             V <- assocstats(x)$cramer
             ci.values <- confIntV(x)
-
-            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.values$output$confIntV.fisher[1], ",",ci.values$output$confIntV.fisher[2],"]", "\n")
-
-            cat("\n")
+            lower <- ci.values$output$confIntV.fisher[1]
+            upper <- ci.values$output$confIntV.fisher[2]
             
+            cat("\n", "Cramer's V [95%CI] =", V, "[", lower, ",",upper,"]", "\n")
+            
+            
+            # Odds Ratio
             if (nrow(x) * ncol(x) == 4) { # Print odds ratio only for the 2×2 table
                
-               OR <- vcd::oddsratio(x, log = F)
-               CI <- confint(vcd::oddsratio(x, log = F))
-               p <- summary(vcd::oddsratio(x))
-               row.names(p) <- ""
-
-                cat("\n", "Odds Ratio [95%CI] =", OR, "[", CI[1], ",",CI[2],"]", "\n")
+               oddsrt <- (x[1,1]/x[1,2]) / (x[2,1]/x[2,2])
+               oddsrt.log <- log((x[1,1]/x[1,2]) / (x[2,1]/x[2,2]))
+               oddsrt.log.var <- 1/x[1,1] + 1/x[1,2] + 1/x[2,1] + 1/x[2,2]
+               ci.lwrupr <- exp(oddsrt.log + qnorm(c(0.025,0.975)) * sqrt(oddsrt.log.var))
+               cat("\n", "Odds Ratio [95%CI] =", oddsrt, "[", ci.lwrupr[1], ",",ci.lwrupr[2],"]", "\n")
                
-               cat("\n")
-               print(p)
-            
             } else {
                 NULL
             }
@@ -608,11 +627,19 @@ shinyServer(function(input, output) {
             cat("\n", "[p-values of adjusted standardized residuals (two-tailed)]", "\n")
             print(round(2*(1-pnorm(abs(res$residuals/sqrt(outer(1-rowSums(x)/sum(x), 1-colSums(x)/sum(x)))))),3)) # 残差の調整後有意確率（両側確率）
             
+            
+            
             # 多重比較
+            if (nrow(x) < 3) { # Not showing if the number of row is 2
+                
+                cat("\n")
+                
+            } else {
+                
             cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
             
-            levI <- nrow(x) # 行の水準数
-            levJ <- ncol(x) # 列の水準数
+            levI <- nrow(x)
+            levJ <- ncol(x)
             N <- sum(x)
             dosu <- as.vector(t(x))
             M <- min(c(levI, levJ))
@@ -623,6 +650,8 @@ shinyServer(function(input, output) {
             pchi <- c()
             fishp <- c()
             v <- c()
+            v.lower <- c()
+            v.upper <- c()
             for(i in 1:(levI-1))
             {
                 for(k in (i+1):levI)
@@ -636,13 +665,19 @@ shinyServer(function(input, output) {
                     {
                         ds <- c(ds, dosu[(k-1)*levJ+j])
                     }
+                    
                     kaik <- c()
-                    kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F) # イェーツの補正なし
+                    kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
                     stat <- c(stat,kaik$stat)
                     jiyu <- c(jiyu,kaik$para)
                     pchi <- c(pchi,kaik$p.va)
                     fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
                     v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                    ci.values <- confIntV(matrix(ds, nr=2, by=1))
+                    lower <- ci.values$output$confIntV.fisher[1]
+                    upper <- ci.values$output$confIntV.fisher[2]
+                    v.lower <- c(v.lower, lower)
+                    v.upper <- c(v.upper, upper)
                 } }
             padj <- c()
             padj <- p.adjust(pchi, "bonferroni")
@@ -653,8 +688,8 @@ shinyServer(function(input, output) {
             {
                 for(j in (i+1):levI)
                 {
-                    kochi <- c(kochi, paste("Row", i, sep=""))
-                    aite  <- c(aite,  paste("Row", j, sep=""))
+                    kochi <- c(kochi, rownames(x)[i])
+                    aite  <- c(aite,  rownames(x)[j])
                 }
             }
             
@@ -662,10 +697,14 @@ shinyServer(function(input, output) {
             df=round(jiyu, 4),
             p=round(padj, 4),
             Fisher.p=round(fishpadj, 4),
-            CramerV=round(v, 4))
+            Cramers.V=round(v, 4),
+            lwr.V=round(v.lower, 4),
+            upr.V=round(v.upper, 4))
             rownames(a) <- cat("\n")
+            
             print(a)
-    
+            
+        }
     })
     
     output$test4.out <- renderPrint({
