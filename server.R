@@ -359,134 +359,148 @@ shinyServer(function(input, output) {
             if (nrow(x) < 3) { # Not showing if the number of row is 2
                 
                 cat("\n")
-
+                
             } else {
-
-            cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
-            
-            levI <- nrow(x)
-            levJ <- ncol(x)
-            N <- sum(x)
-            dosu <- as.vector(t(x))
-            M <- min(c(levI, levJ))
-            
-            
-            # エラーメッセージが出る場合の例外処理
-            e <- try(fisher.test(x, workspace=3000000), silent = FALSE)   # try でfisher.test関数を実行
-            if (class(e) == "try-error") { # if error, without fisher.p
                 
-                a <- c()
-                stat <- c()
-                jiyu <- c()
-                pchi <- c()
-                v <- c()
-                v.lower <- c()
-                v.upper <- c()
-                for(i in 1:(levI-1))
-                {
-                    for(k in (i+1):levI)
-                    {
-                        ds <- c()
-                        for(j in 1:levJ)
-                        {
-                            ds <- c(ds, dosu[(i-1)*levJ+j])
-                        }
-                        for(j in 1:levJ)
-                        {
-                            ds <- c(ds, dosu[(k-1)*levJ+j])
-                        }
-                        
-                        kaik <- c()
-                        kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
-                        stat <- c(stat,kaik$stat)
-                        jiyu <- c(jiyu,kaik$para)
-                        pchi <- c(pchi,kaik$p.va)
-                        v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        v.lower <- c(v.lower, lower)
-                        v.upper <- c(v.upper, upper)
-                    } }
-                padj <- c()
-                padj <- p.adjust(pchi, "bonferroni")
+                cat("\n", "\n", "------------------------------------------------------", "\n", "Multiple comparisons (p-value adjusted with Bonferroni method):", "\n", "\n")
                 
-                kochi<-c(); aite<-c()
-                for(i in 1:(levI-1))
-                {
-                    for(j in (i+1):levI)
-                    {
-                        kochi <- c(kochi, rownames(x)[i])
-                        aite  <- c(aite,  rownames(x)[j])
-                    }
+                levI <- nrow(x)
+                levJ <- ncol(x)
+                N <- sum(x)
+                dosu <- as.vector(t(x))
+                M <- min(c(levI, levJ))
+                
+                V.95CI <- function(x) {
+                    V <- sqrt(chisq.test(x, correct=F)$statistic[[1]]/(sum(x)*(min(nrow(x),ncol(x)-1))))
+                    fisherZ <- 0.5 * log((1 + V)/(1 - V))
+                    fisherZ.se <- 1/sqrt(sum(x) - 3) * qnorm(1 - ((1 - 0.95)/2))
+                    fisherZ.ci <- fisherZ + c(-fisherZ.se, fisherZ.se)
+                    ci.V <- (exp(2 * fisherZ.ci) - 1)/(1 + exp(2 * fisherZ.ci))
+                    return(ci.V)
                 }
                 
-                a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4),
-                df=round(jiyu, 4),
-                p=round(padj, 4),
-                Cramers.V=round(v, 4),
-                lwr.V=round(v.lower, 4),
-                upr.V=round(v.upper, 4))
-                rownames(a) <- cat("\n")
-                
-                print(a)
-                
-            } else { # with fisher.p
-                
-                
-                a <- c()
-                stat <- c()
-                jiyu <- c()
-                pchi <- c()
-                fishp <- c()
-                v <- c()
-                v.lower <- c()
-                v.upper <- c()
-                for(i in 1:(levI-1))
-                {
-                    for(k in (i+1):levI)
+                # エラーメッセージが出る場合の例外処理
+                e <- try(fisher.test(x, workspace=3000000), silent = FALSE)   # try でfisher.test関数を実行
+                if (class(e) == "try-error") { # if error, without fisher.p
+                    
+                    a <- c()
+                    stat <- c()
+                    jiyu <- c()
+                    pchi <- c()
+                    v <- c()
+                    v.lower <- c()
+                    v.upper <- c()
+                    for(i in 1:(levI-1))
                     {
-                        ds <- c()
-                        for(j in 1:levJ)
+                        for(k in (i+1):levI)
                         {
-                            ds <- c(ds, dosu[(i-1)*levJ+j])
-                        }
-                        for(j in 1:levJ)
-                        {
-                            ds <- c(ds, dosu[(k-1)*levJ+j])
-                        }
-                        
-                        kaik <- c()
-                        kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
-                        stat <- c(stat,kaik$stat)
-                        jiyu <- c(jiyu,kaik$para)
-                        pchi <- c(pchi,kaik$p.va)
-                        fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
-                        v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        v.lower <- c(v.lower, lower)
-                        v.upper <- c(v.upper, upper)
-                    } }
-                padj <- c()
-                padj <- p.adjust(pchi, "bonferroni")
-                fishpadj <- p.adjust(fishp, "bonferroni")
-                
-                kochi<-c(); aite<-c()
-                for(i in 1:(levI-1))
-                {
-                    for(j in (i+1):levI)
+                            ds <- c()
+                            for(j in 1:levJ)
+                            {
+                                ds <- c(ds, dosu[(i-1)*levJ+j])
+                            }
+                            for(j in 1:levJ)
+                            {
+                                ds <- c(ds, dosu[(k-1)*levJ+j])
+                            }
+                            
+                            kaik <- c()
+                            kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
+                            stat <- c(stat,kaik$stat)
+                            jiyu <- c(jiyu,kaik$para)
+                            pchi <- c(pchi,kaik$p.va)
+                            v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                            ci.values <- V.95CI(matrix(ds, nr=2, by=1))
+                            lower <- ci.values[1]
+                            upper <- ci.values[2]
+                            v.lower <- c(v.lower, lower)
+                            v.upper <- c(v.upper, upper)
+                        } }
+                    padj <- c()
+                    padj <- p.adjust(pchi, "bonferroni")
+                    
+                    kochi<-c(); aite<-c()
+                    for(i in 1:(levI-1))
                     {
-                        kochi <- c(kochi, rownames(x)[i])
-                        aite  <- c(aite,  rownames(x)[j])
+                        for(j in (i+1):levI)
+                        {
+                            kochi <- c(kochi, rownames(x)[i])
+                            aite  <- c(aite,  rownames(x)[j])
+                        }
                     }
-                }
-                
-                a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4),
-                df=round(jiyu, 4),
-                p=round(padj, 4),
-                Fisher.p=round(fishpadj, 4),
-                Cramers.V=round(v, 4),
-                lwr.V=round(v.lower, 4),
-                upr.V=round(v.upper, 4))
-                rownames(a) <- cat("\n")
-                
-                print(a)
+                    
+                    a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4),
+                    df=round(jiyu, 4),
+                    p=round(padj, 4),
+                    Cramers.V=round(v, 4),
+                    lwr.V=round(v.lower, 4),
+                    upr.V=round(v.upper, 4))
+                    rownames(a) <- cat("\n")
+                    
+                    print(a)
+                    
+                } else { # with fisher.p
+                    
+                    
+                    a <- c()
+                    stat <- c()
+                    jiyu <- c()
+                    pchi <- c()
+                    fishp <- c()
+                    v <- c()
+                    v.lower <- c()
+                    v.upper <- c()
+                    for(i in 1:(levI-1))
+                    {
+                        for(k in (i+1):levI)
+                        {
+                            ds <- c()
+                            for(j in 1:levJ)
+                            {
+                                ds <- c(ds, dosu[(i-1)*levJ+j])
+                            }
+                            for(j in 1:levJ)
+                            {
+                                ds <- c(ds, dosu[(k-1)*levJ+j])
+                            }
+                            
+                            kaik <- c()
+                            kaik <- chisq.test(matrix(ds, nr=2, by=1), correct=F)
+                            stat <- c(stat,kaik$stat)
+                            jiyu <- c(jiyu,kaik$para)
+                            pchi <- c(pchi,kaik$p.va)
+                            fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
+                            v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                            ci.values <- V.95CI(matrix(ds, nr=2, by=1))
+                            lower <- ci.values[1]
+                            upper <- ci.values[2]
+                            v.lower <- c(v.lower, lower)
+                            v.upper <- c(v.upper, upper)
+                        } }
+                    padj <- c()
+                    padj <- p.adjust(pchi, "bonferroni")
+                    fishpadj <- p.adjust(fishp, "bonferroni")
+                    
+                    kochi<-c(); aite<-c()
+                    for(i in 1:(levI-1))
+                    {
+                        for(j in (i+1):levI)
+                        {
+                            kochi <- c(kochi, rownames(x)[i])
+                            aite  <- c(aite,  rownames(x)[j])
+                        }
+                    }
+                    
+                    a <- data.frame(Comparisons=paste(kochi, aite, sep=" vs "), "X^2"=round(stat, 4),
+                    df=round(jiyu, 4),
+                    p=round(padj, 4),
+                    Fisher.p=round(fishpadj, 4),
+                    Cramers.V=round(v, 4),
+                    lwr.V=round(v.lower, 4),
+                    upr.V=round(v.upper, 4))
+                    rownames(a) <- cat("\n")
+                    
+                    print(a)
             }
         }
     })
@@ -670,7 +684,13 @@ shinyServer(function(input, output) {
             "Effect size:", "\n")
 
             # Cramer's V [95%CI]
+            V <- sqrt(chisq.test(x, correct=F)$statistic[[1]]/(sum(x)*(min(nrow(x),ncol(x)-1))))
+            fisherZ <- 0.5 * log((1 + V)/(1 - V))
+            fisherZ.se <- 1/sqrt(sum(x) - 3) * qnorm(1 - ((1 - 0.95)/2))
+            fisherZ.ci <- fisherZ + c(-fisherZ.se, fisherZ.se)
+            ci.V <- (exp(2 * fisherZ.ci) - 1)/(1 + exp(2 * fisherZ.ci))
             
+            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.V[1], ",",ci.V[2],"]", "\n")
             
             
             # Odds Ratio
@@ -720,6 +740,14 @@ shinyServer(function(input, output) {
             dosu <- as.vector(t(x))
             M <- min(c(levI, levJ))
             
+            V.95CI <- function(x) {
+                V <- sqrt(chisq.test(x, correct=F)$statistic[[1]]/(sum(x)*(min(nrow(x),ncol(x)-1))))
+                fisherZ <- 0.5 * log((1 + V)/(1 - V))
+                fisherZ.se <- 1/sqrt(sum(x) - 3) * qnorm(1 - ((1 - 0.95)/2))
+                fisherZ.ci <- fisherZ + c(-fisherZ.se, fisherZ.se)
+                ci.V <- (exp(2 * fisherZ.ci) - 1)/(1 + exp(2 * fisherZ.ci))
+                return(ci.V)
+            }
             
             # エラーメッセージが出る場合の例外処理
             e <- try(fisher.test(x, workspace=3000000), silent = FALSE)   # try でfisher.test関数を実行
@@ -752,6 +780,9 @@ shinyServer(function(input, output) {
                         jiyu <- c(jiyu,kaik$para)
                         pchi <- c(pchi,kaik$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                        ci.values <- V.95CI(matrix(ds, nr=2, by=1))
+                        lower <- ci.values[1]
+                        upper <- ci.values[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
@@ -810,6 +841,9 @@ shinyServer(function(input, output) {
                         pchi <- c(pchi,kaik$p.va)
                         fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
+                        ci.values <- V.95CI(matrix(ds, nr=2, by=1))
+                        lower <- ci.values[1]
+                        upper <- ci.values[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
