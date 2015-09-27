@@ -2,7 +2,6 @@ library(shiny)
 library(shinyAce)
 library(pwr)
 library(vcd)
-library(userfriendlyscience)
 
 
 
@@ -316,13 +315,13 @@ shinyServer(function(input, output) {
             "Effect size:", "\n")
             
             # Cramer's V [95%CI]
-            V <- assocstats(x)$cramer
-            ci.values <- confIntV(x)
-            lower <- ci.values$output$confIntV.fisher[1]
-            upper <- ci.values$output$confIntV.fisher[2]
+            V <- sqrt(chisq.test(x, correct=F)$statistic[[1]]/(sum(x)*(min(nrow(x),ncol(x)-1))))
+            fisherZ <- 0.5 * log((1 + V)/(1 - V))
+            fisherZ.se <- 1/sqrt(sum(x) - 3) * qnorm(1 - ((1 - 0.95)/2))
+            fisherZ.ci <- fisherZ + c(-fisherZ.se, fisherZ.se)
+            ci.V <- (exp(2 * fisherZ.ci) - 1)/(1 + exp(2 * fisherZ.ci))
             
-            cat("\n", "Cramer's V [95%CI] =", V, "[", lower, ",",upper,"]", "\n")
-
+            cat("\n", "Cramer's V [95%CI] =", V, "[", ci.V[1], ",",ci.V[2],"]", "\n")
 
             # Odds Ratio
             if (nrow(x) * ncol(x) == 4) { # Print odds ratio only for the 2×2 table
@@ -403,9 +402,6 @@ shinyServer(function(input, output) {
                         jiyu <- c(jiyu,kaik$para)
                         pchi <- c(pchi,kaik$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        ci.values <- confIntV(matrix(ds, nr=2, by=1))
-                        lower <- ci.values$output$confIntV.fisher[1]
-                        upper <- ci.values$output$confIntV.fisher[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
@@ -464,9 +460,6 @@ shinyServer(function(input, output) {
                         pchi <- c(pchi,kaik$p.va)
                         fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        ci.values <- confIntV(matrix(ds, nr=2, by=1))
-                        lower <- ci.values$output$confIntV.fisher[1]
-                        upper <- ci.values$output$confIntV.fisher[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
@@ -677,12 +670,7 @@ shinyServer(function(input, output) {
             "Effect size:", "\n")
 
             # Cramer's V [95%CI]
-            V <- assocstats(x)$cramer
-            ci.values <- confIntV(x)
-            lower <- ci.values$output$confIntV.fisher[1]
-            upper <- ci.values$output$confIntV.fisher[2]
             
-            cat("\n", "Cramer's V [95%CI] =", V, "[", lower, ",",upper,"]", "\n")
             
             
             # Odds Ratio
@@ -764,9 +752,6 @@ shinyServer(function(input, output) {
                         jiyu <- c(jiyu,kaik$para)
                         pchi <- c(pchi,kaik$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        ci.values <- confIntV(matrix(ds, nr=2, by=1))
-                        lower <- ci.values$output$confIntV.fisher[1]
-                        upper <- ci.values$output$confIntV.fisher[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
@@ -825,9 +810,6 @@ shinyServer(function(input, output) {
                         pchi <- c(pchi,kaik$p.va)
                         fishp <- c(fishp,fisher.test(matrix(ds, nr=2, by=1))$p.va)
                         v <- c(v, sqrt(kaik$stat/(N*(M-1))))
-                        ci.values <- confIntV(matrix(ds, nr=2, by=1))
-                        lower <- ci.values$output$confIntV.fisher[1]
-                        upper <- ci.values$output$confIntV.fisher[2]
                         v.lower <- c(v.lower, lower)
                         v.upper <- c(v.upper, upper)
                     } }
