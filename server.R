@@ -279,7 +279,7 @@ shinyServer(function(input, output) {
             row.names(bb) <- NULL
             
             cc <- data.frame(c[2])[1,]
-            cc <- data.frame(c("Likelihood Ratio"), cc[,1], cc[,2], cc[,3])
+            cc <- data.frame(c("Log-likelihood Ratio (G)"), cc[,1], cc[,2], cc[,3])
             names(cc) <- c("method", "statistic", "parameter", "p.value")
             
             
@@ -645,7 +645,7 @@ shinyServer(function(input, output) {
             row.names(bb) <- NULL
             
             cc <- data.frame(c[2])[1,]
-            cc <- data.frame(c("Likelihood Ratio"), cc[,1], cc[,2], cc[,3])
+            cc <- data.frame(c("Log-likelihood Ratio (G)"), cc[,1], cc[,2], cc[,3])
             names(cc) <- c("method", "statistic", "parameter", "p.value")
             
             
